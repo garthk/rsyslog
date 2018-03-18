@@ -1,0 +1,50 @@
+{
+  "name": "rsyslog",
+  "version": "1.0.0",
+  "description": "Spray UDP packets to a remote syslog",
+  "author": "Garth Kidd <garth@garthk.com>",
+  "license": "MIT",
+  "main": "dist/index.js",
+  "files": [
+    "*.json",
+    "*.md",
+    "dist",
+    "src",
+    "test"
+  ],
+  "keywords": [
+    "rsyslog",
+    "syslog",
+    "udp",
+    "rfc5424"
+  ],
+  "typings": "dist/index.d.ts",
+  "dependencies": {
+    "tslib": "^1.8.0"
+  },
+  "devDependencies": {
+    "@types/code": "^4.0.4",
+    "@types/joi": "^13.0.6",
+    "@types/lab": "^11.1.0",
+    "@types/node": "^9.4.7",
+    "code": "^5.2.0",
+    "cross-env": "^5.1.4",
+    "lab": "^15.4.0",
+    "lab-transform-typescript": "^3.0.1",
+    "rimraf": "^2.5.4",
+    "tslint": "^5.8.0",
+    "typescript": "^2.7.2"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "clean": "rimraf dist reports *.tgz",
+    "lint": "tslint 'src/**/*.ts' 'test/**/*.ts'",
+    "prepublishOnly": "cross-env NODE_ENV=production npm run build",
+    "test": "lab -T node_modules/lab-transform-typescript -v -S -l",
+    "watch": "tsc -p tsconfig.build.json --watch"
+  },
+  "engines": {
+    "node": "^8.0.0",
+    "npm": "^4.0.0"
+  }
+}
