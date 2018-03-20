@@ -53,6 +53,10 @@ export const SEVERITY = {
 
 export const NILVALUE = '-';
 
+export const BOM = new Buffer('EFBBBF', 'hex');
+
+const DELIMITER = new Buffer(' ', 'ascii');
+
 /**
  * Syslog UDP options.
  */
@@ -87,6 +91,13 @@ export interface RemoteSyslogOptions {
      * [HOSTNAME]: https://tools.ietf.org/html/rfc5424#section-6.2.4
      */
     hostname?: string;
+
+    /**
+     * Sender's [PROCID]. Defaults to `process.pid`.
+     *
+     * [PROCID]: https://tools.ietf.org/html/rfc5424#section-6.2.6
+     */
+    procid?: string;
 }
 
 /**
@@ -115,6 +126,7 @@ const optionsSchema = joi.object({
         joi.string().empty(null).valid(Object.keys(FACILITY)),
         joi.number().integer().min(0).max(23),
     ]).default(FACILITY.local0),
+    procid: joi.string().default(process.pid),
 }).default();
 
 const severitySchema = joi.number().integer().min(0).max(7);
@@ -204,21 +216,29 @@ export class RemoteSyslog extends EventEmitter {
         severity = joi.attempt(severity, severitySchema);
         message = joi.attempt(message, messageSchema);
         options = joi.attempt(options, sendOptionsSchema);
-        const procid = process.pid;
         const facility = this.options.facility as number;
         const priority = facility << 3 | severity;
-        const { hostname, appname } = this.options;
+        const { hostname, appname, procid } = this.options;
         const { timestamp, msgid } = options;
         const tsrep = new Date(timestamp || Date.now()).toISOString();
-        const line = `<${priority}>1 ${tsrep} ${hostname} ${appname} ${procid} ${msgid} ${message}`;
-        debug('queue', line);
-        this.queueMessage(new Buffer(line, 'ascii'));
+        const header = `<${priority}>1 ${tsrep} ${hostname} ${appname} ${procid} ${msgid}`;
+        const structured = NILVALUE;
+        const buf = Buffer.concat([
+            new Buffer(header, 'ascii'),
+            DELIMITER,
+            new Buffer(structured, 'ascii'),
+            DELIMITER,
+            BOM,
+            new Buffer(message, 'utf8'),
+        ]);
+        this.queueMessage(buf);
     }
 
     /**
      * Queue another buffer to be sent.
      */
     private queueMessage(buf: Buffer): void {
+        debug('queue', buf.toString());
         if (!this.pending.length) {
             setImmediate(() => this.sendNextMessage());
         }
