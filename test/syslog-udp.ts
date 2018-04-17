@@ -54,6 +54,28 @@ experiment('syslog over UDP', () => {
         expect(messages[0].toString(), 'packet').to.equal(`<133>1 2018-03-18T23:38:05.134Z ${hostname()} - ${process.pid} - - ${BOM.toString()}I\'m awake!`);
     });
 
+    test('sync send twice', async () => {
+        clearMessages();
+
+        const rsyslog = new RemoteSyslog({
+            target_host: address,
+            target_port: port,
+        });
+        rsyslog.once('error', () => { /* la la la la a */ });
+        rsyslog.send(SEVERITY.NOTICE, "I'm awake!", {
+            timestamp: 1521416285134,
+        });
+        rsyslog.send(SEVERITY.NOTICE, "I'm still awake!", {
+            timestamp: 1521416285135,
+        });
+
+        await waitLongEnough();
+
+        expect(messages.length, 'packet count').to.equal(2);
+        expect(messages[0].toString(), 'packet').to.equal(`<133>1 2018-03-18T23:38:05.134Z ${hostname()} - ${process.pid} - - ${BOM.toString()}I\'m awake!`);
+        expect(messages[1].toString(), 'packet').to.equal(`<133>1 2018-03-18T23:38:05.135Z ${hostname()} - ${process.pid} - - ${BOM.toString()}I\'m still awake!`);
+    });
+
     test('overriding hostname, appname, facility, severity, and msgid', async () => {
         clearMessages();
 

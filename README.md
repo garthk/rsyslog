@@ -49,5 +49,7 @@ rsyslog.send(SEVERITY.NOTICE, "I'm awake!", {
 
 ## Change Log
 
+1.1.1: fix scheduling problem revealed by `buf.byteLength` crasher
+
 1.1.0: fix awful spec violation (missing [`STRUCTURED-DATA`][SD]); add `procid` option
 

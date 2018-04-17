@@ -145,6 +145,7 @@ export class RemoteSyslog extends EventEmitter {
     private options: RemoteSyslogOptions;
     private socket: Socket;
     private pending: Buffer[];
+    private running: boolean;
 
     constructor(options?: RemoteSyslogOptions) {
         options = joi.attempt(options, optionsSchema);
@@ -156,6 +157,7 @@ export class RemoteSyslog extends EventEmitter {
         };
         this.pending = [];
         this.handleSendResult = this.handleSendResult.bind(this);
+        this.running = false;
     }
 
     /**
@@ -239,21 +241,36 @@ export class RemoteSyslog extends EventEmitter {
      */
     private queueMessage(buf: Buffer): void {
         debug('queue', buf.toString());
-        if (!this.pending.length) {
-            setImmediate(() => this.sendNextMessage());
-        }
-
         this.pending.push(buf);
+        this.start();
     }
 
     /**
      * Send the next message.
      */
     private sendNextMessage() {
+        if (!this.pending.length) {
+            debug('spurious sendNextMessage');
+            this.stop();
+            return;
+        }
+
         const buf = this.pending.shift();
-        const socket = this.connect();
-        const { target_port, target_host } = this.options;
-        socket.send(buf, 0, buf.byteLength, target_port, target_host, this.handleSendResult);
+        this.continue();
+
+        if (!buf) {
+            debug('undefined buf');
+            return;
+        }
+
+        try {
+            const socket = this.connect();
+            const { target_port, target_host } = this.options;
+            socket.send(buf, 0, buf.byteLength, target_port, target_host, this.handleSendResult);
+
+        } catch (err) {
+            this.handleSendResult(err);
+        }
     }
 
     /**
@@ -262,15 +279,44 @@ export class RemoteSyslog extends EventEmitter {
      * process crashing. So, we keep sending anyway, as we're the only object
      * with a reference to the unsent messages.
      */
-    private handleSendResult(err?: Error): void {
+    private handleSendResult(err?: Error, bytes?: number): void {
         if (err) {
             debug('error', err);
             this.emit('error', err);
-        }
 
-        // Regardless:
+        } else {
+            debug('sent', bytes);
+        }
+    }
+
+    /**
+     * Start sending.
+     */
+    private start() {
+        if (!this.running) {
+            this.running = true;
+            this.continue();
+        }
+    }
+
+    /**
+     * Continue sending if there are more packets, else stop.
+     */
+    private continue() {
         if (this.pending.length) {
             setImmediate(() => this.sendNextMessage());
+
+        } else {
+            this.stop();
+        }
+    }
+
+    /**
+     * Stop sending.
+     */
+    private stop() {
+        if (this.running) {
+            this.running = false;
         }
     }
 }
@@ -286,10 +332,10 @@ function getFacilityCode(facility: number | keyof typeof FACILITY): number {
 
     } else if (!isNaN(int)) {
         return int;
-    
+
     } else if (facility in FACILITY) {
         return FACILITY[facility];
-    
+
     } else {
         throw new Error(`bad facility: ${facility}`);
     }
