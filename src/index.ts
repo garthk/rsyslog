@@ -1,13 +1,12 @@
 
 import * as joi from 'joi';
 
-import { join } from 'path';
 import { hostname } from 'os';
 import { isIPv6 } from 'net';
 import { Socket, createSocket } from 'dgram';
 import { EventEmitter } from 'events';
 
-export const { name, version } = require(join('..', 'package.json'));
+export const { name, version } = require('../package.json');
 
 const debug = require('debug')(name);
 

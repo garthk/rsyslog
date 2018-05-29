@@ -1,6 +1,6 @@
 {
   "name": "rsyslog",
-  "version": "1.1.1",
+  "version": "1.1.2",
   "description": "Spray UDP packets to a remote syslog",
   "author": "Garth Kidd <garth@garthk.com>",
   "license": "MIT",
